@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentUser, signInWithGoogle, signOut } from "@/services/auth-service";
 import { LogIn, LogOut, User } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AuthButton() {
   const [user, setUser] = useState<any>(null);
@@ -38,7 +39,14 @@ export default function AuthButton() {
         <button
           type="button"
           onClick={async () => {
-            await signOut();
+            try {
+              await signOut();
+              toast.success("Successfully signed out.", {
+                description: "Switched cleanly back to local Guest Vault.",
+              });
+            } catch (err: any) {
+              console.error("Sign out process threw:", err);
+            }
             setUser(null);
             window.dispatchEvent(new Event("auth-changed"));
           }}

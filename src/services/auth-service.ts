@@ -25,7 +25,14 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   if (!supabase) return;
-  return supabase.auth.signOut();
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.warn("[auth] signOut error:", error.message);
+    }
+  } catch (err) {
+    console.warn("[auth] unexpected signOut error:", err);
+  }
 }
 
 export async function getCurrentUser() {

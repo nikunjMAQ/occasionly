@@ -75,14 +75,17 @@ export default function Sidebar() {
     return () => window.removeEventListener("auth-changed", loadUser);
   }, []);
 
-  const email = user?.email || "nikunj@occasionly.com";
-  const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Nikunj Gupta";
-  const initials = name
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase() || "NK";
+  const isLoggedIn = !!user;
+  const email = isLoggedIn ? user.email : "Local offline database cache";
+  const name = isLoggedIn ? (user.user_metadata?.full_name || user.email.split("@")[0]) : "Guest Vault";
+  const initials = isLoggedIn
+    ? name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase()
+    : "🔒";
 
   return (
     <aside className="w-60 border-r border-white/5 bg-black/30 backdrop-blur-xl hidden md:flex flex-col h-screen fixed left-0 top-0 bottom-0 justify-between overflow-hidden z-30">

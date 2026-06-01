@@ -1,14 +1,26 @@
 import { supabase } from "@/lib/supabase";
 
 export async function signInWithGoogle() {
-  if (!supabase) return { data: null, error: new Error("Supabase not configured") };
+  if (!supabase) {
+    console.error("[AUTH DEBUG] Supabase is not configured.");
+    return { data: null, error: new Error("Supabase not configured") };
+  }
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: origin ? `${origin}/auth/callback` : undefined,
-    },
-  });
+  console.log("[AUTH DEBUG] Triggered signInWithGoogle. origin originURL =", origin);
+  
+  try {
+    const res = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: origin ? `${origin}/auth/callback` : undefined,
+      },
+    });
+    console.log("[AUTH DEBUG] signInWithOAuth response:", res);
+    return res;
+  } catch (error) {
+    console.error("[AUTH DEBUG] Unexpected auth error caught:", error);
+    return { data: null, error };
+  }
 }
 
 export async function signOut() {

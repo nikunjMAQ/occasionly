@@ -36,6 +36,7 @@ export default function AuthButton() {
           <span className="truncate max-w-[120px]">{user.email}</span>
         </div>
         <button
+          type="button"
           onClick={async () => {
             await signOut();
             setUser(null);
@@ -51,6 +52,7 @@ export default function AuthButton() {
 
   return (
     <button
+      type="button"
       onClick={() => signInWithGoogle()}
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-500 hover:text-gray-300 hover:bg-white/8 hover:border-white/15 transition-colors cursor-pointer"
     >

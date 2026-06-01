@@ -40,6 +40,7 @@ export default function AuthButton() {
           onClick={async () => {
             await signOut();
             setUser(null);
+            window.dispatchEvent(new Event("auth-changed"));
           }}
           title="Sign out"
           className="p-1.5 rounded-xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"

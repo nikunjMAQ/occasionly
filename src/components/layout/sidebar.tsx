@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { getCurrentUser } from "@/services/auth-service";
 
 interface SidebarItem {
   label: string;
@@ -59,6 +61,28 @@ const items: SidebarItem[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const u = await getCurrentUser();
+        setUser(u);
+      } catch {}
+    }
+    loadUser();
+    window.addEventListener("auth-changed", loadUser);
+    return () => window.removeEventListener("auth-changed", loadUser);
+  }, []);
+
+  const email = user?.email || "nikunj@occasionly.com";
+  const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Nikunj Gupta";
+  const initials = name
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "NK";
 
   return (
     <aside className="w-60 border-r border-white/5 bg-black/30 backdrop-blur-xl hidden md:flex flex-col h-screen fixed left-0 top-0 bottom-0 justify-between overflow-hidden z-30">
@@ -127,15 +151,15 @@ export default function Sidebar() {
       {/* Profile footer */}
       <div className="relative z-10 p-4 border-t border-white/8">
         <Link href="/settings" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors duration-200 cursor-pointer group">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 text-indigo-300 font-bold flex items-center justify-center text-sm border border-indigo-500/25 shadow-sm flex-shrink-0">
-            NK
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 text-indigo-300 font-bold flex items-center justify-center text-sm border border-indigo-500/25 shadow-sm flex-shrink-0 capitalize">
+            {initials}
           </div>
           <div className="text-left min-w-0 flex-1">
-            <p className="text-xs font-semibold text-gray-200 truncate">
-              Nikunj Gupta
+            <p className="text-xs font-semibold text-gray-200 truncate capitalize">
+              {name.replace(".", " ")}
             </p>
             <p className="text-[10px] text-gray-500 truncate">
-              nikunj@occasionly.com
+              {email}
             </p>
           </div>
           {/* Online indicator */}

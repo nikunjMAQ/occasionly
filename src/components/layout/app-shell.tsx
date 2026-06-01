@@ -36,18 +36,22 @@ import ConflictViewer from "../conflict-viewer";
 import SyncStatus from "../sync-status";
 import NetworkStatus from "../network-status";
 import AuthButton from "../auth-button";
+import RealtimeStatus from "../realtime-status";
 import DevDebugPanel from "../dev-debug-panel";
 import { OccasionEvent } from "@/types/event";
 import { getAllEvents } from "@/services/event-service";
 import CommandPalette from "../command-palette";
 import { flushSyncQueue } from "@/services/sync-processor";
 import { supabase } from "@/lib/supabase";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 export default function AppShell({
   children,
 }: {
   children: ReactNode;
 }) {
+  useRealtimeSync();
+
   const [isDark, setIsDark] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [logs, setLogs] = useState<ReminderLog[]>([]);
@@ -232,6 +236,7 @@ export default function AppShell({
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-3 text-[11px] border-r border-white/5 pr-4">
               <SyncStatus />
+              <RealtimeStatus />
               <NetworkStatus />
               <AuthButton />
             </div>

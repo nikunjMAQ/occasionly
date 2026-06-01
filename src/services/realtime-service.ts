@@ -2,11 +2,15 @@ import { supabase } from "@/lib/supabase";
 import { db } from "@/lib/db";
 import { OccasionEvent } from "@/types/event";
 import { logger } from "@/lib/logger";
+import { useSyncStore } from "@/store/sync-store";
 
 export function subscribeToRealtimeEvents(
   userId: string
 ) {
   if (!supabase) return null;
+  
+  useSyncStore.getState().setRealtimeStatus("connecting");
+
   return supabase
     .channel("events-realtime")
     .on(
@@ -19,6 +23,18 @@ export function subscribeToRealtimeEvents(
       },
       async (payload) => {
         try {
+          console.log("Realtime payload received:", payload);
+
+          if (payload.eventType === "DELETE") {
+            const oldId = payload.old?.id;
+            if (oldId) {
+              await db.events.delete(oldId);
+              // Trigger standard layout data refresh
+              window.dispatchEvent(new Event("event-saved"));
+            }
+            return;
+          }
+
           const row = payload.new as any;
           if (!row || !row.id) {
             return;
@@ -51,14 +67,19 @@ export function subscribeToRealtimeEvents(
 
           if (!existing) {
             await db.events.add(cloudEvent);
+            window.dispatchEvent(new Event("event-saved"));
             return;
           }
 
           const localVersion = existing.version || 1;
           const cloudVersion = cloudEvent.version || 1;
 
-          if (cloudVersion > localVersion) {
+          const localUpdated = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+          const cloudUpdated = cloudEvent.updatedAt ? new Date(cloudEvent.updatedAt).getTime() : 0;
+
+          if (cloudVersion > localVersion || (cloudVersion === localVersion && cloudUpdated > localUpdated)) {
             await db.events.put(cloudEvent);
+            window.dispatchEvent(new Event("event-saved"));
           }
         } catch (error) {
           logger.log(
@@ -70,5 +91,14 @@ export function subscribeToRealtimeEvents(
         }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      console.log("Realtime connection state changed:", status);
+      if (status === "SUBSCRIBED") {
+        useSyncStore.getState().setRealtimeStatus("active");
+      } else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR") {
+        useSyncStore.getState().setRealtimeStatus("connecting");
+      } else if (status === "CLOSED") {
+        useSyncStore.getState().setRealtimeStatus("inactive");
+      }
+    });
 }

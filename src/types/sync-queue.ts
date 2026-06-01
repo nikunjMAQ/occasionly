@@ -18,4 +18,8 @@ export interface SyncQueueItem {
   createdAt: string;
 
   retries: number;
+
+  status?: "pending" | "synced" | "failed";
+
+  syncedAt?: number;
 }

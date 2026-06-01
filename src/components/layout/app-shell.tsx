@@ -39,6 +39,8 @@ import AuthButton from "../auth-button";
 import { OccasionEvent } from "@/types/event";
 import { getAllEvents } from "@/services/event-service";
 import CommandPalette from "../command-palette";
+import { flushSyncQueue } from "@/services/sync-processor";
+import { supabase } from "@/lib/supabase";
 
 export default function AppShell({
   children,
@@ -78,9 +80,34 @@ export default function AppShell({
 
   useEffect(() => {
     loadSystemStates();
+    
+    // 1. App Boot Sync
+    flushSyncQueue();
+
+    // 2. Online Return Listener
+    function handleOnline() {
+      flushSyncQueue();
+    }
+    window.addEventListener("online", handleOnline);
+
+    // 3. Auth Change Listener (flushes when guest logs in)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (authEvent, session) => {
+        if (authEvent === "SIGNED_IN") {
+          await flushSyncQueue();
+        }
+        window.dispatchEvent(new Event("auth-changed"));
+      }
+    );
+
     // Re-fetch system logs and notifications when an event is saved/deleted
     window.addEventListener("event-saved", loadSystemStates);
-    return () => window.removeEventListener("event-saved", loadSystemStates);
+
+    return () => {
+      window.removeEventListener("event-saved", loadSystemStates);
+      window.removeEventListener("online", handleOnline);
+      subscription.unsubscribe();
+    };
   }, []);
 
   function toggleTheme() {

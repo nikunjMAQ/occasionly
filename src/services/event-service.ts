@@ -13,6 +13,7 @@ export async function addEvent(event: OccasionEvent) {
     payload: event,
     createdAt: new Date().toISOString(),
     retries: 0,
+    status: "pending",
   });
   return result;
 }
@@ -22,14 +23,31 @@ export async function getAllEvents() {
 }
 
 export async function deleteEvent(id: string) {
-  return db.events.delete(id);
+  const result = await db.events.delete(id);
+  await addToSyncQueue({
+    id: uuidv4(),
+    entityType: "event",
+    entityId: id,
+    operation: "delete",
+    payload: null,
+    createdAt: new Date().toISOString(),
+    retries: 0,
+    status: "pending",
+  });
+  return result;
 }
 
-export async function updateEvent(
-  event: OccasionEvent
-) {
-  return db.events.update(
-    event.id,
-    event as any
-  );
+export async function updateEvent(event: OccasionEvent) {
+  const result = await db.events.update(event.id, event as any);
+  await addToSyncQueue({
+    id: uuidv4(),
+    entityType: "event",
+    entityId: event.id,
+    operation: "update",
+    payload: event,
+    createdAt: new Date().toISOString(),
+    retries: 0,
+    status: "pending",
+  });
+  return result;
 }

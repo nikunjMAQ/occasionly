@@ -36,6 +36,7 @@ import ConflictViewer from "../conflict-viewer";
 import SyncStatus from "../sync-status";
 import NetworkStatus from "../network-status";
 import AuthButton from "../auth-button";
+import DevDebugPanel from "../dev-debug-panel";
 import { OccasionEvent } from "@/types/event";
 import { getAllEvents } from "@/services/event-service";
 import CommandPalette from "../command-palette";
@@ -273,10 +274,13 @@ export default function AppShell({
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-2">
-              <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wide">Data Operations</h3>
-              <p className="text-[11px] text-gray-600 mb-3">Backup or recover your local IndexedDB records seamlessly.</p>
-              <DataManagement refresh={loadSystemStates} />
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-2">
+                <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wide">Data Operations</h3>
+                <p className="text-[11px] text-gray-600 mb-3">Backup or recover your local IndexedDB records seamlessly.</p>
+                <DataManagement refresh={loadSystemStates} />
+              </div>
+              <DevDebugPanel />
             </div>
             <div className="space-y-4">
               <ReminderHistory logs={logs} />

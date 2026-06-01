@@ -12,22 +12,22 @@ export default function SyncStatus() {
     guest: {
       color: "bg-zinc-500/5 border-zinc-800/30 text-gray-400 shadow-sm hover:bg-zinc-500/10 hover:border-zinc-700/50 hover:shadow-[0_0_12px_rgba(156,163,175,0.15)]",
       icon: Cloud,
-      label: "Stored Locally",
+      label: "Stored safely on this device",
     },
     syncing: {
       color: "bg-indigo-500/10 border-indigo-500/25 text-indigo-400 shadow-md shadow-indigo-500/5 hover:bg-indigo-500/15 hover:border-indigo-500/40 hover:shadow-[0_0_12px_rgba(99,102,241,0.25)]",
       icon: CloudSync,
-      label: `Syncing... (${pendingCount})`,
+      label: `Syncing securely... (${pendingCount})`,
     },
     synced: {
       color: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400 shadow-md shadow-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500/40 hover:shadow-[0_0_12px_rgba(16,185,129,0.25)]",
       icon: Cloud,
-      label: "Synced Across Devices",
+      label: "Synced across devices",
     },
     offline: {
       color: "bg-amber-500/10 border-amber-500/25 text-amber-400 shadow-md shadow-amber-500/5 hover:bg-amber-500/15 hover:border-amber-500/40 hover:shadow-[0_0_12px_rgba(245,158,11,0.25)]",
       icon: CloudOff,
-      label: "Offline Mode",
+      label: "Offline changes will sync automatically",
     },
     failed: {
       color: "bg-rose-500/10 border-rose-500/25 text-rose-400 shadow-md shadow-rose-500/5 hover:bg-rose-500/15 hover:border-rose-500/40 hover:shadow-[0_0_12px_rgba(244,63,94,0.25)]",

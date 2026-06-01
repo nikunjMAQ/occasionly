@@ -109,9 +109,11 @@ export async function flushSyncQueue() {
     let isSuccess = false;
     if (remainingPending.length === 0) {
       useSyncStore.getState().setSyncState("synced");
+      useSyncStore.getState().setLastSyncTime(Date.now());
       isSuccess = true;
     } else {
       useSyncStore.getState().setSyncState("failed");
+      useSyncStore.getState().setLastSyncTime(Date.now());
     }
 
     // Bidirectional pull & merge
@@ -124,6 +126,7 @@ export async function flushSyncQueue() {
   } catch (err) {
     logger.log("sync", "Critical sync queue flushing exception", err);
     useSyncStore.getState().setSyncState("failed");
+    useSyncStore.getState().setLastSyncTime(Date.now());
     return false;
   }
 }

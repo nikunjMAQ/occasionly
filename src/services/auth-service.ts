@@ -2,7 +2,13 @@ import { supabase } from "@/lib/supabase";
 
 export async function signInWithGoogle() {
   if (!supabase) return { data: null, error: new Error("Supabase not configured") };
-  return supabase.auth.signInWithOAuth({ provider: "google" });
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: origin ? `${origin}/auth/callback` : undefined,
+    },
+  });
 }
 
 export async function signOut() {

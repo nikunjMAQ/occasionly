@@ -1,0 +1,44 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function useNetworkStatus() {
+  const [online, setOnline] =
+    useState(
+      typeof navigator !== "undefined" ? navigator.onLine : true
+    );
+
+  useEffect(() => {
+    function goOnline() {
+      setOnline(true);
+    }
+
+    function goOffline() {
+      setOnline(false);
+    }
+
+    window.addEventListener(
+      "online",
+      goOnline
+    );
+
+    window.addEventListener(
+      "offline",
+      goOffline
+    );
+
+    return () => {
+      window.removeEventListener(
+        "online",
+        goOnline
+      );
+
+      window.removeEventListener(
+        "offline",
+        goOffline
+      );
+    };
+  }, []);
+
+  return online;
+}

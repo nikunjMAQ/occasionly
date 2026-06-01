@@ -21,41 +21,61 @@ interface SidebarItem {
   icon: LucideIcon;
 }
 
-const items: SidebarItem[] = [
+interface SidebarSection {
+  title: string;
+  items: SidebarItem[];
+}
+
+const sections: SidebarSection[] = [
   {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
+    title: "MAIN",
+    items: [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        label: "Calendar",
+        href: "/calendar",
+        icon: Calendar,
+      },
+      {
+        label: "People",
+        href: "/people",
+        icon: Users,
+      },
+    ],
   },
   {
-    label: "Calendar",
-    href: "/calendar",
-    icon: Calendar,
+    title: "INTELLIGENCE",
+    items: [
+      {
+        label: "Analytics",
+        href: "/analytics",
+        icon: BarChart3,
+      },
+      {
+        label: "Notifications",
+        href: "/notifications",
+        icon: Bell,
+      },
+    ],
   },
   {
-    label: "People",
-    href: "/people",
-    icon: Users,
-  },
-  {
-    label: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-  },
-  {
-    label: "Notifications",
-    href: "/notifications",
-    icon: Bell,
-  },
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
-  },
-  {
-    label: "Contact",
-    href: "/contact",
-    icon: Mail,
+    title: "SYSTEM",
+    items: [
+      {
+        label: "Settings",
+        href: "/settings",
+        icon: Settings,
+      },
+      {
+        label: "Contact Us",
+        href: "/contact",
+        icon: Mail,
+      },
+    ],
   },
 ];
 
@@ -105,50 +125,53 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        {/* Nav section label */}
-        <p className="px-6 text-[9px] text-gray-600 font-bold tracking-widest uppercase mb-2">
-          Navigation
-        </p>
+        {/* Nav sections */}
+        <div className="space-y-6">
+          {sections.map((section) => (
+            <div key={section.title} className="space-y-1.5">
+              <p className="px-6 text-[9px] text-gray-600 font-bold tracking-widest uppercase mb-1">
+                {section.title}
+              </p>
+              <nav className="px-3 space-y-0.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    item.href === "/dashboard"
+                      ? pathname === "/dashboard"
+                      : pathname.startsWith(item.href);
 
-        {/* Nav items */}
-        <nav className="px-3 space-y-0.5">
-          {items.map((item) => {
-            const Icon = item.icon;
-            // Check if current route starts with item's href (to keep people profile pages under people highlighting)
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
-
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-150 font-medium text-sm group relative ${
-                  isActive
-                    ? "bg-white/10 text-white font-semibold shadow-xs"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                {/* Active sidebar highlight border */}
-                {isActive && (
-                  <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r bg-violet-500" />
-                )}
-                <Icon
-                  size={16}
-                  className={`flex-shrink-0 transition-colors duration-150 ${
-                    isActive
-                      ? "text-indigo-400"
-                      : "group-hover:text-indigo-400"
-                  }`}
-                />
-                <span className="group-hover:translate-x-0.5 transition-transform duration-150">
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className={`w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-150 font-medium text-sm group relative ${
+                        isActive
+                          ? "bg-white/10 text-white font-semibold shadow-xs"
+                          : "text-gray-400 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      {/* Active sidebar highlight border */}
+                      {isActive && (
+                        <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r bg-violet-500" />
+                      )}
+                      <Icon
+                        size={16}
+                        className={`flex-shrink-0 transition-colors duration-150 ${
+                          isActive
+                            ? "text-indigo-400"
+                            : "group-hover:text-indigo-400"
+                        }`}
+                      />
+                      <span className="group-hover:translate-x-0.5 transition-transform duration-150">
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Profile footer */}

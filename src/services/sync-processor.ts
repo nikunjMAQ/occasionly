@@ -22,8 +22,9 @@ export async function flushSyncQueue() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       useSyncStore.getState().setSyncState("guest");
-      return;
+      return false;
     }
+    console.log("Authenticated user:", session.user.id);
 
     // 2. Fetch pending items
     const queue = await getSyncQueue();
@@ -42,20 +43,29 @@ export async function flushSyncQueue() {
       } catch (error) {
         logger.log("sync", "Bidirectional down-sync merge failed", error);
       }
-      return;
+      return true;
     }
 
     useSyncStore.getState().setSyncState("syncing");
 
     for (const item of pendingItems) {
       try {
+        // Set item status to syncing in IndexedDB before processing
+        await db.syncQueue.update(item.id, {
+          status: "syncing",
+        } as any);
+        console.log("Sync item payload:", item.payload);
+
         if (item.entityType === "event") {
           if (item.operation === "delete") {
             const { error } = await supabase
               .from("events")
               .delete()
               .eq("id", item.entityId);
-            if (error) throw error;
+            if (error) {
+              console.error("Sync failed:", error);
+              throw error;
+            }
           } else {
             // ensure user_id exists matching current session
             const payload = {
@@ -73,15 +83,18 @@ export async function flushSyncQueue() {
         await db.syncQueue.update(item.id, {
           status: "synced",
           syncedAt: Date.now(),
+          lastError: undefined, // Clear any previous error on success
         } as any);
         
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Sync failed:", error);
         logger.log("sync", `Failed to push sync queue item ${item.id}`, error, { item });
         
-        // Update failed item retryCount in IndexedDB
+        // Update failed item retryCount and lastError in IndexedDB
         await db.syncQueue.update(item.id, {
           status: "failed",
           retries: (item.retries || 0) + 1,
+          lastError: error?.message || error?.toString() || "Unknown error",
         } as any);
       }
     }
@@ -93,8 +106,10 @@ export async function flushSyncQueue() {
     );
     useSyncStore.getState().setPendingCount(remainingPending.length);
 
+    let isSuccess = false;
     if (remainingPending.length === 0) {
       useSyncStore.getState().setSyncState("synced");
+      isSuccess = true;
     } else {
       useSyncStore.getState().setSyncState("failed");
     }
@@ -105,9 +120,11 @@ export async function flushSyncQueue() {
     } catch (error) {
       logger.log("sync", "Bidirectional down-sync merge failed", error);
     }
+    return isSuccess;
   } catch (err) {
     logger.log("sync", "Critical sync queue flushing exception", err);
     useSyncStore.getState().setSyncState("failed");
+    return false;
   }
 }
 

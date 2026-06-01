@@ -22,4 +22,6 @@ export interface SyncQueueItem {
   status?: "pending" | "synced" | "failed";
 
   syncedAt?: number;
+
+  lastError?: string;
 }

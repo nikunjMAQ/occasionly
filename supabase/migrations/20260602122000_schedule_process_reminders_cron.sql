@@ -11,7 +11,10 @@ end;
 $$;
 
 -- 3. Schedule the reminder processing function to execute every minute
--- This queries the events table and dispatches emails / updates next reminder states
+-- IMPORTANT: Replace <YOUR_SUPABASE_SERVICE_ROLE_KEY> below with your actual
+-- service role key before running this migration in the Supabase SQL Editor.
+-- Do NOT commit the actual key value — keep it only in Supabase dashboard secrets.
+-- Get your key from: Supabase Dashboard → Settings → API → Service Role Key
 select cron.schedule(
   'process-reminders-every-minute',
   '* * * * *',
@@ -21,9 +24,10 @@ select cron.schedule(
       url := 'https://yrwohdnaaswngndfjhfq.supabase.co/functions/v1/process-reminders',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer YOUR_SUPABASE_SERVICE_ROLE_KEY'
+        'Authorization', 'Bearer <YOUR_SUPABASE_SERVICE_ROLE_KEY>'
       ),
       body := '{}'::jsonb
     );
   $$
 );
+

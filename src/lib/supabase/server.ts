@@ -25,3 +25,20 @@ export async function createClient() {
     }
   );
 }
+
+export async function createAdminClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || env.supabaseAnonKey;
+  return createServerClient(
+    env.supabaseUrl,
+    serviceKey,
+    {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {},
+      },
+    }
+  );
+}
+

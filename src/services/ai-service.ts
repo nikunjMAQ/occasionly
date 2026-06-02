@@ -3,6 +3,7 @@ import { buildWishPrompt } from "./ai-prompt-builder";
 import { OccasionEvent } from "@/types/event";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { getAiPrompt } from "./ai/get-ai-prompt";
 
 const genAI = new GoogleGenerativeAI(env.geminiApiKey);
 
@@ -14,13 +15,15 @@ export async function generateWish(
   event: OccasionEvent
 ) {
   try {
-    const prompt =
-      buildWishPrompt(event);
+    const promptPrefix = getAiPrompt(event.eventType);
+    const detailedPrompt = buildWishPrompt(event);
+    const prompt = `${promptPrefix}\n\nContext:\n${detailedPrompt}`;
 
     const result =
       await model.generateContent(
         prompt
       );
+
 
     const response =
       await result.response;

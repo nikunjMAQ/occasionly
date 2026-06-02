@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Star, MessageCircle, Calendar, Sparkles } from "lucide-react";
 import { EventType } from "@/types/event";
@@ -18,6 +19,31 @@ export default function FeaturedReminder({
   const eventType = reminder.event.eventType;
   const config = occasionMeta[eventType] || occasionMeta.custom;
   const EventIcon = config.icon;
+
+  const [wish, setWish] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  async function handleGenerateWish(e: React.MouseEvent) {
+    e.stopPropagation();
+    setGenerating(true);
+    try {
+      const response = await fetch("/api/generate-wish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(reminder.event),
+      });
+
+      const data = await response.json();
+      setWish(data.wish);
+    } catch (error) {
+      console.error(error);
+      setWish(`Wishing ${reminder.event.personName} a wonderful ${reminder.event.eventType}! 🎉`);
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   const hasWhatsapp =
     !!reminder.event.whatsappNumber &&
@@ -131,7 +157,7 @@ export default function FeaturedReminder({
 
         {/* Action buttons */}
         <div className="flex gap-3">
-          {hasWhatsapp && (
+          {hasWhatsapp && !wish && (
             <a
               href={reminder.whatsappLink}
               target="_blank"
@@ -142,13 +168,60 @@ export default function FeaturedReminder({
             </a>
           )}
           <button
-            onClick={onAddReminder}
-            className="flex items-center justify-center gap-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 rounded-2xl px-4 py-3 font-semibold text-sm transition-all duration-200 cursor-pointer"
+            type="button"
+            onClick={handleGenerateWish}
+            disabled={generating}
+            className="flex-1 flex items-center justify-center gap-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 rounded-2xl px-4 py-3 font-semibold text-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
           >
-            <Sparkles size={15} />
-            Generate Wish
+            {generating ? (
+              <>
+                <span className="h-4 w-4 rounded-full border-2 border-t-transparent border-violet-300 animate-spin" />
+                Generating...
+              </>
+            ) : wish ? (
+              <>
+                <Sparkles size={15} />
+                Regenerate Wish
+              </>
+            ) : (
+              <>
+                <Sparkles size={15} />
+                Generate AI Wish
+              </>
+            )}
           </button>
         </div>
+
+        {wish && (
+          <div className="space-y-3 pt-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            <div className="border border-white/10 rounded-2xl p-4 bg-white/[0.03] text-gray-250 text-xs leading-relaxed italic relative overflow-hidden select-text">
+              {wish}
+            </div>
+
+            <div className="flex gap-3">
+              {hasWhatsapp && (
+                <a
+                  href={`https://wa.me/${reminder.event.whatsappNumber}?text=${encodeURIComponent(wish)}`}
+                  target="_blank"
+                  className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4 rounded-xl text-xs font-bold transition duration-150 shadow-sm"
+                >
+                  <MessageCircle size={14} />
+                  WhatsApp
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(wish);
+                }}
+                className="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 py-2.5 px-4 rounded-xl cursor-pointer transition flex items-center justify-center gap-2 text-xs font-bold"
+              >
+                Copy Wish
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );

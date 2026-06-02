@@ -297,28 +297,58 @@ export default function AppShell({
 
       {/* Add / Edit Dialog */}
       <Dialog open={addReminderOpen} onOpenChange={(open) => {
-        if (!open) closeAddReminder();
+        if (!open) {
+          closeAddReminder();
+          document.body.style.overflow = "";
+        }
       }}>
-        <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto bg-[#12141c] border border-white/10 rounded-3xl shadow-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
-              {editingEvent ? "✏️ Edit Reminder" : "✨ Add Reminder"}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-gray-500 mt-1">
-              Configure details, AI preferred tones, and notifications for this memory milestone.
-            </DialogDescription>
-          </DialogHeader>
-          <AddEventForm
-            onEventSaved={() => {
-              closeAddReminder();
-              // Dispatch standard HTML5 save trigger
-              window.dispatchEvent(new Event("event-saved"));
-            }}
-            editingEvent={editingEvent}
-            clearEditing={closeAddReminder}
-          />
+        <DialogContent className="w-full h-[100dvh] sm:max-w-[500px] sm:h-auto sm:max-h-[85vh] overflow-y-auto bg-[#12141c] border-0 sm:border border-white/10 rounded-none sm:rounded-3xl shadow-2xl p-0 sm:p-6 flex flex-col">
+          {/* Mobile Sticky Header */}
+          <div className="sticky top-0 z-10 bg-[#12141c] border-b border-white/5 px-6 py-4 flex items-center justify-between sm:hidden flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                closeAddReminder();
+                document.body.style.overflow = "";
+              }}
+              className="text-sm font-semibold text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
+            >
+              ← Close
+            </button>
+            <span className="font-bold text-white text-sm">
+              {editingEvent ? "Edit Reminder" : "Add Reminder"}
+            </span>
+            <div className="w-12" />
+          </div>
+
+          <div className="p-6 sm:p-0 flex-1 overflow-y-auto">
+            <DialogHeader className="hidden sm:block">
+              <DialogTitle className="text-xl font-bold text-white">
+                {editingEvent ? "✏️ Edit Reminder" : "✨ Add Reminder"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500 mt-1">
+                Configure details, AI preferred tones, and notifications for this memory milestone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              <AddEventForm
+                onEventSaved={() => {
+                  closeAddReminder();
+                  document.body.style.overflow = "";
+                  // Dispatch standard HTML5 save trigger
+                  window.dispatchEvent(new Event("event-saved"));
+                }}
+                editingEvent={editingEvent}
+                clearEditing={() => {
+                  closeAddReminder();
+                  document.body.style.overflow = "";
+                }}
+              />
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
+
 
       {/* Global Command Palette Search */}
       <CommandPalette events={events} onAddReminder={openAddReminder} />

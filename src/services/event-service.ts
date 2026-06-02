@@ -2,15 +2,27 @@ import { db } from "@/lib/db";
 import { OccasionEvent } from "@/types/event";
 import { v4 as uuidv4 } from "uuid";
 import { addToSyncQueue } from "./sync-queue-service";
+import { supabase } from "@/lib/supabase";
 
 export async function addEvent(event: OccasionEvent) {
-  const result = await db.events.add(event);
+  let userId: string | undefined;
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    userId = session?.user?.id;
+  }
+  
+  const eventWithUser = {
+    ...event,
+    ...(userId ? { user_id: userId } : {}),
+  };
+
+  const result = await db.events.add(eventWithUser);
   await addToSyncQueue({
     id: uuidv4(),
     entityType: "event",
     entityId: event.id,
     operation: "create",
-    payload: event,
+    payload: eventWithUser,
     createdAt: new Date().toISOString(),
     retries: 0,
     status: "pending",
@@ -38,16 +50,28 @@ export async function deleteEvent(id: string) {
 }
 
 export async function updateEvent(event: OccasionEvent) {
-  const result = await db.events.update(event.id, event as any);
+  let userId: string | undefined;
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    userId = session?.user?.id;
+  }
+
+  const eventWithUser = {
+    ...event,
+    ...(userId ? { user_id: userId } : {}),
+  };
+
+  const result = await db.events.update(event.id, eventWithUser as any);
   await addToSyncQueue({
     id: uuidv4(),
     entityType: "event",
     entityId: event.id,
     operation: "update",
-    payload: event,
+    payload: eventWithUser,
     createdAt: new Date().toISOString(),
     retries: 0,
     status: "pending",
   });
   return result;
 }
+

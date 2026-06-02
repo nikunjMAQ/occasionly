@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from "uuid";
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { occasionMeta } from "@/constants/occasion-meta";
 import { EventType } from "@/types/event";
+import { calculateNextReminderAt } from "@/services/reminder-service";
+import { db } from "@/lib/db";
 
 const EVENT_TYPES = (Object.keys(occasionMeta) as EventType[]).map((key) => {
   const meta = occasionMeta[key];
@@ -59,7 +61,9 @@ export default function AddEventForm({
   editingEvent: OccasionEvent | null;
   clearEditing: () => void;
 }) {
-  const { register, handleSubmit, reset, setValue, watch } = useForm<EventFormData>({
+  const [error, setError] = useState<string | null>(null);
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema) as any,
     defaultValues: {
       eventType: "birthday",
@@ -85,15 +89,52 @@ export default function AddEventForm({
 
   useEffect(() => {
     if (editingEvent) {
-      reset(editingEvent as any);
+      const num = editingEvent.whatsappNumber || "";
+      const displayNum = (num.length === 12 && num.startsWith("91")) ? num.slice(2) : num;
+      reset({
+        ...editingEvent,
+        whatsappNumber: displayNum,
+      } as any);
     }
   }, [editingEvent, reset]);
 
   async function onSubmit(data: EventFormData) {
+    setError(null);
+
+    // Duplicate Prevention (Fix 6)
+    if (!editingEvent) {
+      const allEvents = await db.events.toArray();
+      const duplicate = allEvents.find(
+        (e) =>
+          e.personName.trim().toLowerCase() === data.personName.trim().toLowerCase() &&
+          e.eventType === data.eventType &&
+          e.recurringDate === data.recurringDate
+      );
+
+      if (duplicate) {
+        setError("Reminder already exists");
+        return;
+      }
+    }
+
+    const phone = data.whatsappNumber || "";
+    const cleanPhone = phone.replace(/[^\d]/g, "");
+    const normalizedPhone = cleanPhone ? `91${cleanPhone}` : "";
+
+    const nextReminder = calculateNextReminderAt({
+      recurringDate: data.recurringDate,
+      reminderOffsetDays: Number(data.reminderOffsetDays),
+      reminderTime: data.reminderTime,
+      timezone: data.timezone,
+    });
+
     if (editingEvent) {
       await updateEvent({
         ...editingEvent,
         ...data,
+        whatsappNumber: normalizedPhone,
+        nextReminderAt: nextReminder,
+        reminderOffsetDays: Number(data.reminderOffsetDays),
         updatedAt: new Date().toISOString(),
         version: (editingEvent.version || 1) + 1,
       });
@@ -105,6 +146,9 @@ export default function AddEventForm({
         updatedAt: new Date().toISOString(),
         version: 1,
         ...data,
+        whatsappNumber: normalizedPhone,
+        nextReminderAt: nextReminder,
+        reminderOffsetDays: Number(data.reminderOffsetDays),
       } as any);
     }
 
@@ -123,6 +167,7 @@ export default function AddEventForm({
     onEventSaved();
   }
 
+
   const selectedEventConfig = EVENT_TYPES.find(e => e.value === selectedEventType);
 
   return (
@@ -130,6 +175,12 @@ export default function AddEventForm({
       onSubmit={handleSubmit(onSubmit)}
       className="space-y-5"
     >
+      {error && (
+        <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-200 text-xs font-medium flex items-center justify-between animate-in fade-in-0 duration-200">
+          <span>⚠️ {error}</span>
+          <button type="button" onClick={() => setError(null)} className="text-rose-400 hover:text-white font-bold cursor-pointer text-sm">×</button>
+        </div>
+      )}
       {/* Person name */}
       <div>
         <label className={labelClasses}>Person Name</label>
@@ -213,12 +264,24 @@ export default function AddEventForm({
           WhatsApp Number
           <span className="text-gray-600 ml-1 normal-case font-normal">(optional)</span>
         </label>
-        <input
-          {...register("whatsappNumber")}
-          placeholder="+91 98765 43210"
-          className={inputClasses}
-        />
+        <div className="flex items-center gap-2 w-full border border-white/10 rounded-xl bg-white/5 focus-within:ring-2 focus-within:ring-violet-500/30 transition overflow-hidden">
+          <span className="pl-3.5 pr-2.5 py-3 border-r border-white/5 text-gray-500 text-sm select-none font-medium bg-white/[0.02]">
+            +91
+          </span>
+          <input
+            {...register("whatsappNumber")}
+            placeholder="9876543210"
+            maxLength={10}
+            className="w-full p-3 pl-1.5 focus:outline-none bg-transparent text-gray-200 text-sm transition placeholder-gray-600"
+          />
+        </div>
+        {errors.whatsappNumber && (
+          <p className="text-rose-500 text-[11px] mt-1.5 font-medium ml-1">
+            {errors.whatsappNumber.message}
+          </p>
+        )}
       </div>
+
 
       {/* Reminder timing — 2 col */}
       <div className="grid grid-cols-2 gap-3">

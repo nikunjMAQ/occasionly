@@ -1,10 +1,6 @@
-import {
-  differenceInCalendarDays,
-  set,
-} from "date-fns";
-
+import { fromZonedTime } from "date-fns-tz";
+import { set, differenceInCalendarDays } from "date-fns";
 import { OccasionEvent } from "@/types/event";
-
 import { ReminderItem } from "@/types/reminder";
 
 export function generateWhatsAppLink(
@@ -14,6 +10,35 @@ export function generateWhatsAppLink(
   return `https://wa.me/${number}?text=${encodeURIComponent(
     message
   )}`;
+}
+
+export function calculateNextReminderAt(event: {
+  recurringDate: string; // "YYYY-MM-DD"
+  reminderOffsetDays: number;
+  reminderTime: string; // "HH:MM"
+  timezone: string;
+}): string {
+  const today = new Date();
+  
+  const celebrationParts = event.recurringDate.split("-");
+  const month = Number(celebrationParts[1]) - 1; // 0-indexed
+  const day = Number(celebrationParts[2]);
+
+  let targetYear = today.getFullYear();
+  
+  let celebrationDateStr = `${targetYear}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T${event.reminderTime}:00`;
+  let celebrationZoned = fromZonedTime(celebrationDateStr, event.timezone);
+
+  if (celebrationZoned < today) {
+    targetYear += 1;
+    celebrationDateStr = `${targetYear}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T${event.reminderTime}:00`;
+    celebrationZoned = fromZonedTime(celebrationDateStr, event.timezone);
+  }
+
+  const reminderZoned = new Date(celebrationZoned);
+  reminderZoned.setDate(reminderZoned.getDate() - event.reminderOffsetDays);
+
+  return reminderZoned.toISOString();
 }
 
 export function getUpcomingReminders(

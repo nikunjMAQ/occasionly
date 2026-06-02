@@ -29,7 +29,21 @@ export const eventSchema = z.object({
 
   recurringDate: z.string(),
 
-  whatsappNumber: z.string().optional().default(""),
+  whatsappNumber: z
+    .string()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        const clean = val.replace(/\s+/g, "");
+        return /^[6-9]\d{9}$/.test(clean);
+      },
+      {
+        message: "Please enter a valid 10-digit Indian phone number (starting with 6-9)",
+      }
+    )
+    .optional()
+    .default(""),
+
 
   reminderOffsetDays: z.coerce
     .number()

@@ -31,6 +31,7 @@ export type RelationshipType =
 
 export interface OccasionEvent {
   id: string;
+  user_id?: string;
   personName: string;
   relationshipType: RelationshipType;
   isFavorite: boolean;

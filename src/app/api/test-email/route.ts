@@ -7,14 +7,18 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const email = searchParams.get("email");
+  let email = searchParams.get("email")?.trim() || "";
+  // Remove surrounding single or double quotes if any
+  email = email.replace(/^["']|["']$/g, "");
+
   const phone = searchParams.get("phone") || "+1234567890";
   const name = searchParams.get("name") || "Nikunj";
   const message = searchParams.get("message") || "Wishing you a wonderful celebration filled with joy and success! 🎉";
 
-  if (!email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
     return NextResponse.json(
-      { error: "Missing required 'email' query parameter." },
+      { error: "Invalid or missing 'email' parameter. Please provide a valid email format (e.g. 'user@example.com')." },
       { status: 400 }
     );
   }

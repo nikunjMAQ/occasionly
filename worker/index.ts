@@ -1,22 +1,25 @@
 // worker/index.ts
-declare let self: any;
+// Runs inside the Service Worker (ServiceWorkerGlobalScope).
+// Compiled separately with tsconfig.worker.json which uses lib: ["webworker"].
 
-self.addEventListener("notificationclick", (event: any) => {
+self.addEventListener("notificationclick", (event: NotificationEvent) => {
   event.notification.close();
-  const url = event.notification?.data?.url;
-  if (url) {
-    event.waitUntil(
-      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList: any) => {
-        // Try to focus existing window if possible, otherwise open new
+
+  const url: string | undefined = event.notification?.data?.url;
+  if (!url) return;
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        // Focus an existing tab if it already has that URL open
         for (const client of clientList) {
           if (client.url === url && "focus" in client) {
-            return client.focus();
+            return (client as WindowClient).focus();
           }
         }
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(url);
-        }
+        // Otherwise open a new window/tab
+        return self.clients.openWindow(url);
       })
-    );
-  }
+  );
 });

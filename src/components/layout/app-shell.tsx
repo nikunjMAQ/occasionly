@@ -44,6 +44,8 @@ import CommandPalette from "../command-palette";
 import { flushSyncQueue } from "@/services/sync-processor";
 import { supabase } from "@/lib/supabase";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { registerSW } from "@/lib/register-sw";
+import PWAInstallBanner from "../pwa-install-banner";
 
 export default function AppShell({
   children,
@@ -85,17 +87,20 @@ export default function AppShell({
 
   useEffect(() => {
     loadSystemStates();
-    
-    // 1. App Boot Sync
+
+    // 1. Register Service Worker
+    registerSW();
+
+    // 2. App Boot Sync
     flushSyncQueue();
 
-    // 2. Online Return Listener
+    // 3. Online Return Listener
     function handleOnline() {
       flushSyncQueue();
     }
     window.addEventListener("online", handleOnline);
 
-    // 3. Auth Change Listener (flushes when guest logs in)
+    // 4. Auth Change Listener (flushes when guest logs in)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (authEvent, session) => {
         if (authEvent === "SIGNED_IN") {
@@ -352,6 +357,9 @@ export default function AppShell({
 
       {/* Global Command Palette Search */}
       <CommandPalette events={events} onAddReminder={openAddReminder} />
+
+      {/* PWA Install Banner (shows automatically after 2.5s if installable) */}
+      <PWAInstallBanner />
     </div>
   );
 }

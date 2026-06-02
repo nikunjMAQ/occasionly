@@ -61,6 +61,9 @@ export function subscribeToRealtimeEvents(
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             version: row.version,
+            lastRemindedAt: row.last_reminded_at || undefined,
+            nextReminderAt: row.next_reminder_at || undefined,
+            reminderEnabled: row.reminder_enabled !== false,
           };
 
           const existing = await db.events.get(cloudEvent.id);

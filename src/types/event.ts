@@ -50,4 +50,7 @@ export interface OccasionEvent {
   createdAt: string;
   updatedAt: string;
   version: number;
+  lastRemindedAt?: string;
+  nextReminderAt?: string;
+  reminderEnabled?: boolean;
 }

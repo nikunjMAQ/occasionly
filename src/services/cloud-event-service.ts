@@ -32,6 +32,9 @@ export async function uploadEvent({
       starting_year: event.startingYear || null,
       updated_at: new Date().toISOString(),
       version: event.version,
+      last_reminded_at: event.lastRemindedAt || null,
+      next_reminder_at: event.nextReminderAt || null,
+      reminder_enabled: event.reminderEnabled !== false,
     });
 
   if (error) {

@@ -937,6 +937,35 @@ Rules:
         console.warn(`Could not insert success log for reminder ${reminderId}:`, logError);
       }
 
+      // 7b. Send push notification (best-effort — never blocks email delivery)
+      const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") || "";
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+
+      if (appUrl && serviceRoleKey) {
+        try {
+          const pushRes = await fetch(`${appUrl}/api/send-push`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              title: emailContent.subject,
+              body: `Tap to send your wish to ${personName} on WhatsApp 💬`,
+              url: whatsappLink,
+            }),
+          });
+          const pushData = await pushRes.json();
+          console.log(`[Push] Delivery for reminder ${reminderId}:`, pushData);
+        } catch (pushErr) {
+          // Push failure is non-fatal — email was already delivered
+          console.warn(`[Push] Non-fatal push error for reminder ${reminderId}:`, pushErr);
+        }
+      } else {
+        console.log(`[Push] Skipped — NEXT_PUBLIC_APP_URL or service role key not configured.`);
+      }
+
       // 8. Update last reminded and reschedule next occurrence
       const currentNext = new Date(reminder.next_reminder_at);
       currentNext.setFullYear(currentNext.getFullYear() + 1);

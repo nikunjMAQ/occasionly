@@ -16,10 +16,17 @@ function ensureVapidDetails() {
   vapidInitialized = true;
 }
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabaseAdminInstance: any = null;
+function getSupabaseAdmin(): any {
+  if (supabaseAdminInstance) return supabaseAdminInstance;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error("Supabase credentials not configured in environment.");
+  }
+  supabaseAdminInstance = createClient(url, serviceKey);
+  return supabaseAdminInstance;
+}
 
 interface SendPushBody {
   user_id: string;
@@ -30,6 +37,7 @@ interface SendPushBody {
 
 export async function POST(req: NextRequest) {
   ensureVapidDetails();
+  const supabaseAdmin = getSupabaseAdmin();
   // 1. Verify caller is our own Edge Function (service role key as Bearer token)
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -74,7 +82,7 @@ export async function POST(req: NextRequest) {
 
   // 5. Fan out to all subscriptions (multiple devices)
   await Promise.allSettled(
-    subscriptions.map(async (row) => {
+    subscriptions.map(async (row: any) => {
       try {
         await webpush.sendNotification(
           row.subscription as webpush.PushSubscription,

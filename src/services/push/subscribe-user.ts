@@ -44,46 +44,52 @@ export async function subscribeUserToPush(): Promise<PushSubscription | null> {
     return null;
   }
 
-  try {
-    // Wait for SW to be active with a timeout
-    const registration = await getServiceWorkerRegistrationWithTimeout();
+  const subscribePromise = (async (): Promise<PushSubscription | null> => {
+    try {
+      const registration = await getServiceWorkerRegistrationWithTimeout();
 
-    // Subscribe (or retrieve existing subscription)
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
+      // Subscribe (or retrieve existing subscription)
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
 
-    // Get the authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.warn("[Push] No authenticated user — skipping subscription storage.");
+      // Get the authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn("[Push] No authenticated user — skipping subscription storage.");
+        return subscription;
+      }
+
+      // Upsert into push_subscriptions (conflict on endpoint)
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .upsert(
+          {
+            user_id: user.id,
+            endpoint: subscription.endpoint,
+            subscription: subscription.toJSON(),
+          },
+          { onConflict: "endpoint" }
+        );
+
+      if (error) {
+        console.error("[Push] Failed to save subscription:", error);
+      } else {
+        console.log("[Push] Subscription saved successfully.");
+      }
+
       return subscription;
+    } catch (err) {
+      console.error("[Push] Subscribe failed:", err);
+      return null;
     }
+  })();
 
-    // Upsert into push_subscriptions (conflict on endpoint)
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .upsert(
-        {
-          user_id: user.id,
-          endpoint: subscription.endpoint,
-          subscription: subscription.toJSON(),
-        },
-        { onConflict: "endpoint" }
-      );
-
-    if (error) {
-      console.error("[Push] Failed to save subscription:", error);
-    } else {
-      console.log("[Push] Subscription saved successfully.");
-    }
-
-    return subscription;
-  } catch (err) {
-    console.error("[Push] Subscribe failed:", err);
-    return null;
-  }
+  return Promise.race([
+    subscribePromise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000))
+  ]);
 }
 
 /**
@@ -93,20 +99,27 @@ export async function subscribeUserToPush(): Promise<PushSubscription | null> {
 export async function unsubscribeUserFromPush(): Promise<void> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
-  try {
-    const registration = await getServiceWorkerRegistrationWithTimeout();
-    const subscription = await registration.pushManager.getSubscription();
-    if (!subscription) return;
+  const unsubscribePromise = (async () => {
+    try {
+      const registration = await getServiceWorkerRegistrationWithTimeout();
+      const subscription = await registration.pushManager.getSubscription();
+      if (!subscription) return;
 
-    const endpoint = subscription.endpoint;
-    await subscription.unsubscribe();
+      const endpoint = subscription.endpoint;
+      await subscription.unsubscribe().catch((e) => console.warn("[Push] SW unsubscribe failed:", e));
 
-    // Remove from Supabase
-    await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
-    console.log("[Push] Unsubscribed and removed from Supabase.");
-  } catch (err) {
-    console.error("[Push] Unsubscribe failed:", err);
-  }
+      // Remove from Supabase
+      await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      console.log("[Push] Unsubscribed and removed from Supabase.");
+    } catch (err) {
+      console.error("[Push] Unsubscribe failed:", err);
+    }
+  })();
+
+  await Promise.race([
+    unsubscribePromise,
+    new Promise<void>((resolve) => setTimeout(resolve, 4000))
+  ]);
 }
 
 /**
@@ -114,10 +127,18 @@ export async function unsubscribeUserFromPush(): Promise<void> {
  */
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
-  try {
-    const registration = await getServiceWorkerRegistrationWithTimeout();
-    return await registration.pushManager.getSubscription();
-  } catch {
-    return null;
-  }
+  
+  const getSubPromise = (async (): Promise<PushSubscription | null> => {
+    try {
+      const registration = await getServiceWorkerRegistrationWithTimeout();
+      return await registration.pushManager.getSubscription();
+    } catch {
+      return null;
+    }
+  })();
+
+  return Promise.race([
+    getSubPromise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+  ]);
 }

@@ -39,6 +39,7 @@ export async function GET(request: Request) {
       );
     }
 
+    reminder = fetchedReminder;
     targetUserId = reminder.user_id;
 
     // Fetch user details dynamically using admin client

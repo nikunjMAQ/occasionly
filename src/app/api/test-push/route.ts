@@ -3,13 +3,22 @@ import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+let vapidInitialized = false;
+function ensureVapidDetails() {
+  if (vapidInitialized) return;
+  const subject = process.env.VAPID_SUBJECT;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!subject || !publicKey || !privateKey) {
+    console.warn("[Push] VAPID keys not configured in environment.");
+    return;
+  }
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  vapidInitialized = true;
+}
 
 export async function POST(req: NextRequest) {
+  ensureVapidDetails();
   // 1. Auth — require active user session
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();

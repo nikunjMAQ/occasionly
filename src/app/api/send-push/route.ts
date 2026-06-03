@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
 
-// Configure web-push once at module load
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+let vapidInitialized = false;
+function ensureVapidDetails() {
+  if (vapidInitialized) return;
+  const subject = process.env.VAPID_SUBJECT;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!subject || !publicKey || !privateKey) {
+    console.warn("[Push] VAPID keys not configured in environment.");
+    return;
+  }
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  vapidInitialized = true;
+}
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,6 +29,7 @@ interface SendPushBody {
 }
 
 export async function POST(req: NextRequest) {
+  ensureVapidDetails();
   // 1. Verify caller is our own Edge Function (service role key as Bearer token)
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

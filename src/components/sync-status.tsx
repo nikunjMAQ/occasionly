@@ -4,6 +4,7 @@ import { useSyncStore } from "@/store/sync-store";
 import { Cloud, CloudOff, CloudSync, AlertCircle } from "lucide-react";
 import { flushSyncQueue } from "@/services/sync-processor";
 import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/services/toast/error-messages";
 
 export default function SyncStatus() {
   const { syncState, pendingCount } = useSyncStore();
@@ -58,7 +59,7 @@ export default function SyncStatus() {
           return "Sync finished with partial updates. We will try again automatically.";
         }
       },
-      error: "Critical synchronization error occurred.",
+      error: (err) => getFriendlyErrorMessage(err),
     });
   };
 

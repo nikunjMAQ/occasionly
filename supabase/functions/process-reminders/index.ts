@@ -711,6 +711,17 @@ function getTemplate(type: string) {
   }
 }
 
+function getFallbackMessage(personName: string, type: string): string {
+  switch (type) {
+    case "birthday":
+      return `Happy Birthday ${personName}! Wishing you happiness and success.`;
+    case "anniversary":
+      return `Happy Anniversary ${personName}! Wishing you both a wonderful journey ahead.`;
+    default:
+      return `Best wishes to ${personName}!`;
+  }
+}
+
 function parseZonedTimeToUtc(dateStr: string, timeZone: string): Date {
   const utcDate = new Date(dateStr + "Z");
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -949,7 +960,7 @@ Rules:
 - Use the person's name or nickname naturally
 - Make it emotionally intelligent, high-impact, and premium.`;
 
-      let wish = `Wishing you a wonderful ${occasion}! 🎉`;
+      let wish = "";
 
       if (geminiApiKey) {
         try {
@@ -985,6 +996,10 @@ Rules:
         } catch (geminiErr) {
           console.error("AI Wish generation failed. Using default template:", geminiErr);
         }
+      }
+
+      if (!wish) {
+        wish = getFallbackMessage(personName, occasion);
       }
 
       // 5. WhatsApp deep link

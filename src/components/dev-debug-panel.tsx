@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { SyncQueueItem } from "@/types/sync-queue";
 import { Activity, Wifi, WifiOff, ShieldCheck, Key, RefreshCw, AlertTriangle, Trash2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
+import { getFriendlyErrorMessage } from "@/services/toast/error-messages";
 import { flushSyncQueue } from "@/services/sync-processor";
 
 export default function DevDebugPanel() {
@@ -75,7 +76,7 @@ export default function DevDebugPanel() {
       toast.success(`Cleared ${failedIds.length} failed queue items.`);
       loadDiagnostics();
     } catch (err: any) {
-      toast.error("Failed to clear queue items: " + err.message);
+      toast.error(getFriendlyErrorMessage(err));
     }
   };
 

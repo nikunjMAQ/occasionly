@@ -12,6 +12,7 @@ import { occasionMeta } from "@/constants/occasion-meta";
 import { EventType } from "@/types/event";
 import { calculateNextReminderAt } from "@/services/reminder-service";
 import { db } from "@/lib/db";
+import { getFriendlyErrorMessage } from "@/services/toast/error-messages";
 
 const EVENT_TYPES = (Object.keys(occasionMeta) as EventType[]).map((key) => {
   const meta = occasionMeta[key];
@@ -122,70 +123,75 @@ export default function AddEventForm({
   async function onSubmit(data: EventFormData) {
     setError(null);
 
-    // Duplicate Prevention (Fix 6)
-    if (!editingEvent) {
-      const allEvents = await db.events.toArray();
-      const duplicate = allEvents.find(
-        (e) =>
-          e.personName.trim().toLowerCase() === data.personName.trim().toLowerCase() &&
-          e.eventType === data.eventType &&
-          e.recurringDate === data.recurringDate
-      );
+    try {
+      // Duplicate Prevention (Fix 6)
+      if (!editingEvent) {
+        const allEvents = await db.events.toArray();
+        const duplicate = allEvents.find(
+          (e) =>
+            e.personName.trim().toLowerCase() === data.personName.trim().toLowerCase() &&
+            e.eventType === data.eventType &&
+            e.recurringDate === data.recurringDate
+        );
 
-      if (duplicate) {
-        setError("Reminder already exists");
-        return;
+        if (duplicate) {
+          setError(getFriendlyErrorMessage("reminder already exists"));
+          return;
+        }
       }
-    }
 
-    const phone = data.whatsappNumber || "";
-    const cleanPhone = phone.replace(/[^\d]/g, "");
-    const normalizedPhone = cleanPhone ? `91${cleanPhone}` : "";
+      const phone = data.whatsappNumber || "";
+      const cleanPhone = phone.replace(/[^\d]/g, "");
+      const normalizedPhone = cleanPhone ? `91${cleanPhone}` : "";
 
-    const nextReminder = calculateNextReminderAt({
-      recurringDate: data.recurringDate,
-      reminderOffsetDays: Number(data.reminderOffsetDays),
-      reminderTime: data.reminderTime,
-      timezone: data.timezone,
-    });
-
-    if (editingEvent) {
-      await updateEvent({
-        ...editingEvent,
-        ...data,
-        whatsappNumber: normalizedPhone,
-        nextReminderAt: nextReminder,
+      const nextReminder = calculateNextReminderAt({
+        recurringDate: data.recurringDate,
         reminderOffsetDays: Number(data.reminderOffsetDays),
-        updatedAt: new Date().toISOString(),
-        version: (editingEvent.version || 1) + 1,
+        reminderTime: data.reminderTime,
+        timezone: data.timezone,
       });
-      clearEditing();
-    } else {
-      await addEvent({
-        id: uuidv4(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        version: 1,
-        ...data,
-        whatsappNumber: normalizedPhone,
-        nextReminderAt: nextReminder,
-        reminderOffsetDays: Number(data.reminderOffsetDays),
+
+      if (editingEvent) {
+        await updateEvent({
+          ...editingEvent,
+          ...data,
+          whatsappNumber: normalizedPhone,
+          nextReminderAt: nextReminder,
+          reminderOffsetDays: Number(data.reminderOffsetDays),
+          updatedAt: new Date().toISOString(),
+          version: (editingEvent.version || 1) + 1,
+        });
+        clearEditing();
+      } else {
+        await addEvent({
+          id: uuidv4(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: 1,
+          ...data,
+          whatsappNumber: normalizedPhone,
+          nextReminderAt: nextReminder,
+          reminderOffsetDays: Number(data.reminderOffsetDays),
+        } as any);
+      }
+
+      reset({
+        eventType: "birthday",
+        relationshipType: "friend",
+        isFavorite: false,
+        tone: "warm",
+        reminderOffsetDays: 0,
+        reminderTime: "09:00",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        preferredReminderChannel: "whatsapp",
+        whatsappNumber: "",
       } as any);
+
+      onEventSaved();
+    } catch (err: any) {
+      console.error("Failed to save event:", err);
+      setError(getFriendlyErrorMessage(err));
     }
-
-    reset({
-      eventType: "birthday",
-      relationshipType: "friend",
-      isFavorite: false,
-      tone: "warm",
-      reminderOffsetDays: 0,
-      reminderTime: "09:00",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      preferredReminderChannel: "whatsapp",
-      whatsappNumber: "",
-    } as any);
-
-    onEventSaved();
   }
 
 

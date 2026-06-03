@@ -46,6 +46,7 @@ import { supabase } from "@/lib/supabase";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { registerSW } from "@/lib/register-sw";
 import PWAInstallBanner from "../pwa-install-banner";
+import GuestMigrationModal from "../guest-migration-modal";
 
 export default function AppShell({
   children,
@@ -360,6 +361,9 @@ export default function AppShell({
 
       {/* Global Command Palette Search */}
       <CommandPalette events={events} onAddReminder={openAddReminder} />
+
+      {/* Guest-to-Login Migration Dialog */}
+      <GuestMigrationModal />
 
       {/* PWA Install Banner (shows automatically after 2.5s if installable) */}
       <PWAInstallBanner />

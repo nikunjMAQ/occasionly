@@ -4,6 +4,7 @@ import { OccasionEvent } from "@/types/event";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getAiPrompt } from "./ai/get-ai-prompt";
+import { getFallbackMessage } from "./ai/fallback-message";
 
 const genAI = new GoogleGenerativeAI(env.geminiApiKey);
 
@@ -32,6 +33,9 @@ export async function generateWish(
   } catch (error) {
     logger.log("ai", `Gemini wish generation failed for connection ${event.personName} (${event.id})`, error, { event });
 
-    return `Wishing ${event.personName} a wonderful ${event.eventType}! 🎉`;
+    return getFallbackMessage({
+      personName: event.personName,
+      type: event.eventType,
+    });
   }
 }

@@ -17,6 +17,15 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   return outputArray;
 }
 
+function getServiceWorkerRegistrationWithTimeout(timeoutMs = 3000): Promise<ServiceWorkerRegistration> {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Service Worker activation timed out.")), timeoutMs)
+    ),
+  ]);
+}
+
 /**
  * Subscribe the current browser to Web Push and persist the subscription
  * in the `push_subscriptions` Supabase table for the logged-in user.
@@ -36,8 +45,8 @@ export async function subscribeUserToPush(): Promise<PushSubscription | null> {
   }
 
   try {
-    // Wait for SW to be active
-    const registration = await navigator.serviceWorker.ready;
+    // Wait for SW to be active with a timeout
+    const registration = await getServiceWorkerRegistrationWithTimeout();
 
     // Subscribe (or retrieve existing subscription)
     const subscription = await registration.pushManager.subscribe({
@@ -85,7 +94,7 @@ export async function unsubscribeUserFromPush(): Promise<void> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await getServiceWorkerRegistrationWithTimeout();
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) return;
 
@@ -106,7 +115,7 @@ export async function unsubscribeUserFromPush(): Promise<void> {
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await getServiceWorkerRegistrationWithTimeout();
     return await registration.pushManager.getSubscription();
   } catch {
     return null;

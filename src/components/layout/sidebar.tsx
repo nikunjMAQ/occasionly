@@ -12,8 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import { getCurrentUser } from "@/services/auth-service";
+import { useAuth } from "@/providers/auth-provider";
 
 interface SidebarItem {
   label: string;
@@ -81,24 +80,24 @@ const sections: SidebarSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const u = await getCurrentUser();
-        setUser(u);
-      } catch {}
-    }
-    loadUser();
-    window.addEventListener("auth-changed", loadUser);
-    return () => window.removeEventListener("auth-changed", loadUser);
-  }, []);
+  const { user, loading } = useAuth();
 
   const isLoggedIn = !!user;
-  const email = isLoggedIn ? user.email : "Local offline database cache";
-  const name = isLoggedIn ? (user.user_metadata?.full_name || user.email.split("@")[0]) : "Guest Vault";
-  const initials = isLoggedIn
+  const email = loading 
+    ? "Checking session..." 
+    : isLoggedIn 
+    ? user.email 
+    : "Local offline database cache";
+
+  const name = loading
+    ? "Loading..."
+    : isLoggedIn
+    ? (user.user_metadata?.full_name || user.email?.split("@")[0])
+    : "Guest Vault";
+
+  const initials = loading
+    ? "..."
+    : isLoggedIn
     ? name
         .split(" ")
         .map((n: string) => n[0])

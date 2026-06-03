@@ -1,4 +1,4 @@
-import { resend } from "@/lib/resend";
+import { getResendClient } from "@/lib/resend";
 
 /**
  * Dispatches a transaction email alert containing connection milestone details.
@@ -16,6 +16,7 @@ export async function sendReminderEmail({
   subject: string;
   html: string;
 }) {
+  const resend = getResendClient();
   return resend.emails.send({
     from: "Occasionly <onboarding@resend.dev>",
     to,

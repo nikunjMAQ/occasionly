@@ -1,30 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getCurrentUser, signInWithGoogle, signOut } from "@/services/auth-service";
+import { useAuth } from "@/providers/auth-provider";
+import { signInWithGoogle, signOut } from "@/services/auth-service";
 import { LogIn, LogOut, User } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AuthButton() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  async function loadUser() {
-    setLoading(true);
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-    } catch {
-      // Silently fail — no Supabase or offline
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadUser();
-  }, []);
+  const { user, loading } = useAuth();
 
   // While loading, render nothing (avoid layout shift)
   if (loading) return null;
@@ -47,8 +29,6 @@ export default function AuthButton() {
             } catch (err: any) {
               console.error("Sign out process threw:", err);
             }
-            setUser(null);
-            window.dispatchEvent(new Event("auth-changed"));
           }}
           title="Sign out"
           className="p-1.5 rounded-xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"

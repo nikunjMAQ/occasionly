@@ -50,6 +50,7 @@ import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { registerSW } from "@/lib/register-sw";
 import PWAInstallBanner from "../pwa-install-banner";
 import GuestMigrationModal from "../guest-migration-modal";
+import { useAuth } from "@/providers/auth-provider";
 
 export default function AppShell({
   children,
@@ -63,16 +64,7 @@ export default function AppShell({
   const [logs, setLogs] = useState<ReminderLog[]>([]);
   const [conflicts, setConflicts] = useState<ConflictLog[]>([]);
   const [events, setEvents] = useState<OccasionEvent[]>([]);
-  const [user, setUser] = useState<any>(null);
-
-  async function loadUser() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
-    } catch {
-      setUser(null);
-    }
-  }
+  const { user, loading } = useAuth();
 
   const {
     addReminderOpen,
@@ -101,7 +93,6 @@ export default function AppShell({
 
   useEffect(() => {
     loadSystemStates();
-    loadUser();
 
     // 1. Register Service Worker
     registerSW();
@@ -127,12 +118,10 @@ export default function AppShell({
 
     // Re-fetch system logs and notifications when an event is saved/deleted
     window.addEventListener("event-saved", loadSystemStates);
-    window.addEventListener("auth-changed", loadUser);
 
     return () => {
       window.removeEventListener("event-saved", loadSystemStates);
       window.removeEventListener("online", handleOnline);
-      window.removeEventListener("auth-changed", loadUser);
       subscription.unsubscribe();
     };
   }, []);
@@ -215,14 +204,26 @@ export default function AppShell({
                   <div className="px-6 py-4 border-t border-white/10 bg-black/10 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="h-8 w-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-xs border border-indigo-500/35 flex-shrink-0 capitalize">
-                        {user ? (user.user_metadata?.full_name || user.email?.split("@")[0] || "U").split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "🔒"}
+                        {loading 
+                          ? "..." 
+                          : user 
+                          ? (user.user_metadata?.full_name || user.email?.split("@")[0] || "U").split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() 
+                          : "🔒"}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-gray-250 truncate capitalize">
-                          {user ? (user.user_metadata?.full_name || user.email?.split("@")[0])?.replace(".", " ") : "Guest Vault"}
+                          {loading 
+                            ? "Loading..." 
+                            : user 
+                            ? (user.user_metadata?.full_name || user.email?.split("@")[0])?.replace(".", " ") 
+                            : "Guest Vault"}
                         </p>
                         <p className="text-[9px] text-gray-500 truncate">
-                          {user ? user.email : "Local offline cache"}
+                          {loading 
+                            ? "Checking session..." 
+                            : user 
+                            ? user.email 
+                            : "Local offline cache"}
                         </p>
                       </div>
                     </div>

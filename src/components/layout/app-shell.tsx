@@ -307,9 +307,12 @@ export default function AppShell({
           document.body.style.overflow = "";
         }
       }}>
-        <DialogContent className="w-full h-[100dvh] sm:max-w-[500px] sm:h-auto sm:max-h-[85vh] overflow-y-auto bg-[#12141c] border-0 sm:border border-white/10 rounded-none sm:rounded-3xl shadow-2xl p-0 sm:p-6 flex flex-col">
+        <DialogContent className="fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-[500px] h-auto bg-[#12141c] border border-white/10 sm:rounded-3xl shadow-2xl p-0 sm:p-6 flex flex-col max-h-[85vh] overflow-y-auto max-sm:fixed max-sm:bottom-0 max-sm:top-auto max-sm:left-0 max-sm:right-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-[32px] max-sm:border-t max-sm:border-white/10 max-sm:max-h-[92vh] max-sm:gap-0">
+          {/* Drag Handle for Bottom Sheet on Mobile */}
+          <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5 sm:hidden flex-shrink-0" />
+
           {/* Mobile Sticky Header */}
-          <div className="sticky top-0 z-10 bg-[#12141c] border-b border-white/5 px-6 py-4 flex items-center justify-between sm:hidden flex-shrink-0">
+          <div className="sticky top-0 z-10 bg-[#12141c] border-b border-white/5 px-6 pb-4 pt-1 flex items-center justify-between sm:hidden flex-shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -326,7 +329,7 @@ export default function AppShell({
             <div className="w-12" />
           </div>
 
-          <div className="p-6 sm:p-0 flex-1 overflow-y-auto">
+          <div className="p-6 sm:p-0 flex-1 overflow-y-auto max-sm:pb-32">
             <DialogHeader className="hidden sm:block">
               <DialogTitle className="text-xl font-bold text-white">
                 {editingEvent ? "✏️ Edit Reminder" : "✨ Add Reminder"}

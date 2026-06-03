@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Download, Smartphone, Share } from "lucide-react";
 import { useInstallPrompt, InstallPlatform } from "@/hooks/use-install-prompt";
 import { requestNotificationPermission } from "@/services/push/request-permission";
+import { db } from "@/lib/db";
 
 const DISMISSED_KEY = "pwa_install_banner_dismissed";
 
@@ -55,9 +56,22 @@ export default function PWAInstallBanner({ onDismiss }: Props) {
     // Don't show if already dismissed this session
     const dismissed = sessionStorage.getItem(DISMISSED_KEY);
     if (!dismissed && canInstall && !isInstalled) {
-      // Slight delay so page renders first
-      const t = setTimeout(() => setVisible(true), 2500);
-      return () => clearTimeout(t);
+      let active = true;
+      let t: NodeJS.Timeout;
+      
+      db.events.count().then((count) => {
+        if (active && count > 0) {
+          // Slight delay so page renders first
+          t = setTimeout(() => setVisible(true), 2500);
+        }
+      }).catch((err) => {
+        console.warn("[PWA] Error counting events:", err);
+      });
+
+      return () => {
+        active = false;
+        if (t) clearTimeout(t);
+      };
     }
   }, [canInstall, isInstalled]);
 

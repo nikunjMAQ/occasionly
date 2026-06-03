@@ -25,18 +25,21 @@ export function calculateNextReminderAt(event: {
   const day = Number(celebrationParts[2]);
 
   let targetYear = today.getFullYear();
-  
-  let celebrationDateStr = `${targetYear}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T${event.reminderTime}:00`;
-  let celebrationZoned = fromZonedTime(celebrationDateStr, event.timezone);
+  let reminderZoned: Date;
 
-  if (celebrationZoned < today) {
+  while (true) {
+    const celebrationDateStr = `${targetYear}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T${event.reminderTime}:00`;
+    const celebrationZoned = fromZonedTime(celebrationDateStr, event.timezone);
+
+    const candidateReminder = new Date(celebrationZoned);
+    candidateReminder.setDate(candidateReminder.getDate() - event.reminderOffsetDays);
+
+    if (candidateReminder >= today) {
+      reminderZoned = candidateReminder;
+      break;
+    }
     targetYear += 1;
-    celebrationDateStr = `${targetYear}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T${event.reminderTime}:00`;
-    celebrationZoned = fromZonedTime(celebrationDateStr, event.timezone);
   }
-
-  const reminderZoned = new Date(celebrationZoned);
-  reminderZoned.setDate(reminderZoned.getDate() - event.reminderOffsetDays);
 
   return reminderZoned.toISOString();
 }

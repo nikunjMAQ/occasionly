@@ -711,6 +711,72 @@ function getTemplate(type: string) {
   }
 }
 
+function parseZonedTimeToUtc(dateStr: string, timeZone: string): Date {
+  const utcDate = new Date(dateStr + "Z");
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+  
+  const parts = formatter.formatToParts(utcDate);
+  const partVal = (type: string) => parts.find(p => p.type === type)!.value;
+  
+  const year = parseInt(partVal("year"));
+  const month = parseInt(partVal("month"));
+  const day = parseInt(partVal("day"));
+  let hour = parseInt(partVal("hour"));
+  if (hour === 24) hour = 0;
+  const minute = parseInt(partVal("minute"));
+  const second = parseInt(partVal("second"));
+  
+  const formattedUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+  const diff = utcDate.getTime() - formattedUtc;
+  
+  return new Date(utcDate.getTime() + diff);
+}
+
+function calculateNextReminderAtZoned({
+  occasionDate,
+  reminderDaysBefore,
+  reminderTime,
+  timezone,
+  referenceDate,
+}: {
+  occasionDate: string;
+  reminderDaysBefore: number;
+  reminderTime: string;
+  timezone: string;
+  referenceDate: Date;
+}): string {
+  const parts = occasionDate.split("-");
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  
+  let targetYear = referenceDate.getFullYear();
+  let reminderZoned: Date;
+  
+  while (true) {
+    const celebrationDateStr = `${targetYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${reminderTime}:00`;
+    const celebrationZoned = parseZonedTimeToUtc(celebrationDateStr, timezone);
+    
+    const candidateReminder = new Date(celebrationZoned);
+    candidateReminder.setDate(candidateReminder.getDate() - reminderDaysBefore);
+    
+    if (candidateReminder > referenceDate) {
+      reminderZoned = candidateReminder;
+      break;
+    }
+    targetYear += 1;
+  }
+  return reminderZoned.toISOString();
+}
+
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -736,12 +802,14 @@ serve(async (req) => {
   const now = new Date().toISOString();
   console.log(`[Scheduler Triggered] Processing due reminders at: ${now}`);
 
-  // 2. Query active and due events
+  // 2. Query and lock active and due events atomically
   const { data: reminders, error: queryError } = await supabase
     .from("events")
-    .select("*")
+    .update({ processing: true })
     .eq("reminder_enabled", true)
-    .lte("next_reminder_at", now);
+    .or("processing.eq.false,processing.is.null")
+    .lte("next_reminder_at", now)
+    .select();
 
   if (queryError) {
     console.error("Scheduler query failed:", queryError);
@@ -788,14 +856,19 @@ serve(async (req) => {
       if (count !== null && count >= 3) {
         console.warn(`Skipping reminder ${reminderId} - exceeded max failures today.`);
         // Reschedule to next year anyway so we don't get stuck in a loop forever
-        const currentNext = new Date(reminder.next_reminder_at);
-        currentNext.setFullYear(currentNext.getFullYear() + 1);
-        const nextReminder = currentNext.toISOString();
+        const nextReminder = calculateNextReminderAtZoned({
+          occasionDate: reminder.occasion_date,
+          reminderDaysBefore: reminder.reminder_days_before || 0,
+          reminderTime: reminder.reminder_time || "09:00",
+          timezone: reminder.timezone || "UTC",
+          referenceDate: new Date(),
+        });
 
         await supabase
           .from("events")
           .update({
             next_reminder_at: nextReminder,
+            processing: false, // Release lock
           })
           .eq("id", reminderId);
 
@@ -806,7 +879,35 @@ serve(async (req) => {
         continue;
       }
 
-      // 2. Fetch Connection Owner Email details
+      // 2. Duplicate Protection (Verify last_reminded_at and recent successful deliveries)
+      if (reminder.last_reminded_at) {
+        const lastReminded = new Date(reminder.last_reminded_at);
+        const hoursSinceLast = (new Date().getTime() - lastReminded.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLast < 23) {
+          console.log(`[Duplicate Skip] Reminder ${reminderId} already sent recently (last_reminded_at: ${reminder.last_reminded_at}).`);
+          await supabase.from("events").update({ processing: false }).eq("id", reminderId);
+          continue;
+        }
+      }
+
+      const { data: recentDeliveries, error: deliveryCheckErr } = await supabase
+        .from("reminder_deliveries")
+        .select("id")
+        .eq("reminder_id", reminderId)
+        .eq("status", "delivered")
+        .gte("created_at", new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString());
+
+      if (deliveryCheckErr) {
+        console.warn(`Error checking recent deliveries for ${reminderId}:`, deliveryCheckErr);
+      }
+
+      if (recentDeliveries && recentDeliveries.length > 0) {
+        console.log(`[Duplicate Skip] Successful delivery log found for reminder ${reminderId} in last 23 hours.`);
+        await supabase.from("events").update({ processing: false }).eq("id", reminderId);
+        continue;
+      }
+
+      // 3. Fetch Connection Owner Email details
       const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
       if (userError || !userData?.user) {
         throw new Error(
@@ -819,7 +920,7 @@ serve(async (req) => {
         throw new Error(`Owner ${userId} has no registered email destination`);
       }
 
-      // 3. AI Wish generation via Gemini Flash API
+      // 4. AI Wish generation via Gemini Flash API
       const occasion = reminder.occasion_type || "celebration";
       const tone = reminder.tone || "warm";
       const relationship = reminder.relationship_type || "friend";
@@ -831,14 +932,14 @@ serve(async (req) => {
       const promptPrefix = getAiPrompt(occasion);
 
       const prompt = `${promptPrefix}
-
+ 
 Relationship details:
 - Relationship: ${relationship}
 - Person name: ${personName}
 ${nickname ? `- Nickname: ${nickname}\n` : ""}
 ${interests.length > 0 ? `- Interests: ${interests.join(", ")}\n` : ""}
 ${notes ? `- Personal Context: ${notes}\n` : ""}
-
+ 
 Rules:
 - Keep the wish under 30 words (highly concise, punchy, and premium)
 - Write in a natural, warm, and authentic human tone (no generic greetings or corporate speak)
@@ -886,11 +987,11 @@ Rules:
         }
       }
 
-      // 4. WhatsApp deep link
+      // 5. WhatsApp deep link
       const cleanPhone = (reminder.whatsapp_number || "").replace(/[^\d]/g, "");
       const whatsappLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(wish)}`;
 
-      // 5. Resolve email template
+      // 6. Resolve email template
       const templateFn = getTemplate(occasion);
       const emailContent = templateFn({
         personName,
@@ -898,7 +999,7 @@ Rules:
         whatsappLink,
       });
 
-      // 6. Send email via Resend
+      // 7. Send email via Resend
       if (!resendApiKey) {
         throw new Error("RESEND_API_KEY environment variable is not configured");
       }
@@ -922,7 +1023,7 @@ Rules:
         throw new Error(`Resend API returned failure: ${emailErr}`);
       }
 
-      // 7. Log success record
+      // 8. Log success record
       const { error: logError } = await supabase
         .from("reminder_deliveries")
         .insert({
@@ -937,7 +1038,7 @@ Rules:
         console.warn(`Could not insert success log for reminder ${reminderId}:`, logError);
       }
 
-      // 7b. Send push notification (best-effort — never blocks email delivery)
+      // 9. Send push notification (best-effort — never blocks email delivery)
       const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") || "";
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
@@ -966,16 +1067,21 @@ Rules:
         console.log(`[Push] Skipped — NEXT_PUBLIC_APP_URL or service role key not configured.`);
       }
 
-      // 8. Update last reminded and reschedule next occurrence
-      const currentNext = new Date(reminder.next_reminder_at);
-      currentNext.setFullYear(currentNext.getFullYear() + 1);
-      const nextReminder = currentNext.toISOString();
+      // 10. Update last reminded and reschedule next occurrence in target timezone
+      const nextReminder = calculateNextReminderAtZoned({
+        occasionDate: reminder.occasion_date,
+        reminderDaysBefore: reminder.reminder_days_before || 0,
+        reminderTime: reminder.reminder_time || "09:00",
+        timezone: reminder.timezone || "UTC",
+        referenceDate: new Date(),
+      });
 
       const { error: updateError } = await supabase
         .from("events")
         .update({
           last_reminded_at: new Date().toISOString(),
           next_reminder_at: nextReminder,
+          processing: false, // Release lock
         })
         .eq("id", reminderId);
 
@@ -1005,6 +1111,47 @@ Rules:
           });
       } catch (dbLogErr) {
         console.error(`Could not write failed delivery log to Supabase:`, dbLogErr);
+      }
+
+      // Space out retries on failure (backoff)
+      try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const { count: failCount } = await supabase
+          .from("reminder_deliveries")
+          .select("*", { count: "exact", head: true })
+          .eq("reminder_id", reminderId)
+          .eq("status", "failed")
+          .gte("created_at", todayStart.toISOString());
+        
+        const currentFailures = (failCount || 0);
+
+        let nextRetry: Date;
+        if (currentFailures >= 3) {
+          console.warn(`Rescheduling reminder ${reminderId} to next year due to consecutive failures.`);
+          nextRetry = new Date(calculateNextReminderAtZoned({
+            occasionDate: reminder.occasion_date,
+            reminderDaysBefore: reminder.reminder_days_before || 0,
+            reminderTime: reminder.reminder_time || "09:00",
+            timezone: reminder.timezone || "UTC",
+            referenceDate: new Date(),
+          }));
+        } else {
+          // Space out retries: 1st -> +15m, 2nd -> +1h
+          const delayMs = currentFailures === 1 ? 15 * 60 * 1000 : 60 * 60 * 1000;
+          nextRetry = new Date(Date.now() + delayMs);
+          console.log(`Scheduling retry ${currentFailures} for reminder ${reminderId} in ${delayMs / 60000} minutes.`);
+        }
+
+        await supabase
+          .from("events")
+          .update({
+            processing: false, // Release lock
+            next_reminder_at: nextRetry.toISOString(),
+          })
+          .eq("id", reminderId);
+      } catch (updateErr) {
+        console.error(`Could not reset processing lock/retry time for reminder ${reminderId}:`, updateErr);
       }
     }
   }

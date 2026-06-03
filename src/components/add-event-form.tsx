@@ -62,6 +62,9 @@ export default function AddEventForm({
   clearEditing: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [formMonth, setFormMonth] = useState("01");
+  const [formDay, setFormDay] = useState("01");
+  const [formYear, setFormYear] = useState("");
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventSchema) as any,
@@ -95,8 +98,26 @@ export default function AddEventForm({
         ...editingEvent,
         whatsappNumber: displayNum,
       } as any);
+
+      const parts = (editingEvent.recurringDate || "").split("-");
+      if (parts.length === 3) {
+        setFormMonth(parts[1]);
+        setFormDay(parts[2]);
+      }
+      setFormYear(editingEvent.startingYear ? String(editingEvent.startingYear) : "");
+    } else {
+      setFormMonth("01");
+      setFormDay("01");
+      setFormYear("");
     }
   }, [editingEvent, reset]);
+
+  useEffect(() => {
+    const finalYear = formYear.trim() ? formYear.trim() : "2004";
+    const finalDate = `${finalYear}-${formMonth.padStart(2, "0")}-${formDay.padStart(2, "0")}`;
+    setValue("recurringDate", finalDate);
+    setValue("startingYear", formYear.trim() ? Number(formYear) : undefined);
+  }, [formMonth, formDay, formYear, setValue]);
 
   async function onSubmit(data: EventFormData) {
     setError(null);
@@ -232,31 +253,92 @@ export default function AddEventForm({
         )}
       </div>
 
-      {/* Date */}
-      <div>
-        <label className={labelClasses}>Date</label>
-        <input
-          type="date"
-          {...register("recurringDate")}
-          className={inputClasses}
-        />
-      </div>
+      {/* Celebration Date (Month + Day Dropdowns, Optional Year) */}
+      <div className="space-y-1.5">
+        <label className={labelClasses}>Celebration Date</label>
+        <div className="grid grid-cols-3 gap-3">
+          {/* Day Selector */}
+          <div>
+            <select
+              value={formDay}
+              onChange={(e) => setFormDay(e.target.value)}
+              className={selectClasses}
+            >
+              {Array.from(
+                {
+                  length: [4, 6, 9, 11].includes(Number(formMonth))
+                    ? 30
+                    : Number(formMonth) === 2
+                    ? 29
+                    : 31,
+                },
+                (_, i) => {
+                  const dStr = String(i + 1).padStart(2, "0");
+                  return (
+                    <option key={dStr} value={dStr}>
+                      {i + 1}
+                    </option>
+                  );
+                }
+              )}
+            </select>
+          </div>
 
-      {/* Starting year — only relevant for some types */}
-      {["birthday", "anniversary", "work_anniversary", "first_meeting", "promotion", "memorial"].includes(selectedEventType) && (
-        <div>
-          <label className={labelClasses}>
-            {selectedEventType === "birthday" ? "Birth Year" : "Starting Year"}
-            <span className="text-gray-600 ml-1 normal-case font-normal">(optional)</span>
-          </label>
-          <input
-            type="number"
-            {...register("startingYear")}
-            placeholder={`e.g. ${new Date().getFullYear() - 5}`}
-            className={inputClasses}
-          />
+          {/* Month Selector */}
+          <div>
+            <select
+              value={formMonth}
+              onChange={(e) => {
+                const newMonth = e.target.value;
+                setFormMonth(newMonth);
+                const maxDays = [4, 6, 9, 11].includes(Number(newMonth))
+                  ? 30
+                  : Number(newMonth) === 2
+                  ? 29
+                  : 31;
+                if (Number(formDay) > maxDays) {
+                  setFormDay(String(maxDays).padStart(2, "0"));
+                }
+              }}
+              className={selectClasses}
+            >
+              {[
+                { value: "01", label: "January" },
+                { value: "02", label: "February" },
+                { value: "03", label: "March" },
+                { value: "04", label: "April" },
+                { value: "05", label: "May" },
+                { value: "06", label: "June" },
+                { value: "07", label: "July" },
+                { value: "08", label: "August" },
+                { value: "09", label: "September" },
+                { value: "10", label: "October" },
+                { value: "11", label: "November" },
+                { value: "12", label: "December" },
+              ].map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Year Input (Optional) */}
+          <div>
+            <input
+              type="number"
+              value={formYear}
+              onChange={(e) => setFormYear(e.target.value)}
+              placeholder="Year (optional)"
+              min={1900}
+              max={new Date().getFullYear() + 10}
+              className={inputClasses}
+            />
+          </div>
         </div>
-      )}
+        <input type="hidden" {...register("recurringDate")} />
+        <input type="hidden" {...register("startingYear")} />
+      </div>
 
       {/* WhatsApp number */}
       <div>

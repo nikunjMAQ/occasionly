@@ -312,13 +312,14 @@ export default function AppShell({
           </button>
 
           {/* Quick Header Actions: Sync & Notifications */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <div className="hidden sm:flex items-center gap-3 text-[11px] border-r border-white/5 pr-4">
               <SyncStatus />
               <RealtimeStatus />
               <NetworkStatus />
-              <AuthButton />
             </div>
+            
+            <AuthButton />
 
             {/* Notification Bell Slide-over Drawer */}
             <NotificationDrawer
